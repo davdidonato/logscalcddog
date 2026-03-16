@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Datadog Logs Calculator</title>
+<style>
+  /* ── Color Scheme & Design Tokens ── */
+  :root {
+    --black: #000000;
+    --white: #ffffff;
+    --green: #10B981;
+    --red: #EF4444;
+    --border: 1.5px solid var(--black);
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  }
+
+  /* ── Reset & Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--white);
+    color: var(--black);
+    line-height: 1.5;
+    padding: 24px 16px 64px;
+  }
+
+  .container {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  /* ── Typography ── */
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 24px;
+  }
+
+  h2 {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    margin-bottom: 16px;
+  }
+
+  /* ── Divider ── */
+  hr {
+    border: none;
+    border-top: var(--border);
+    margin: 40px 0;
+  }
+
+  /* ── Form Elements ── */
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+
+  input[type="number"],
+  select {
+    width: 100%;
+    padding: 10px 12px;
+    font-family: var(--font);
+    font-size: 15px;
+    border: var(--border);
+    border-radius: 0;
+    background: var(--white);
+    color: var(--black);
+    -webkit-appearance: none;
+    appearance: none;
+    outline: none;
+  }
+
+  input[type="number"]:focus,
+  select:focus {
+    box-shadow: 0 0 0 1px var(--black);
+  }
+
+  /* Remove number input spinners */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] { -moz-appearance: textfield; }
+
+  /* Select arrow */
+  .select-wrap {
+    position: relative;
+  }
+  .select-wrap::after {
+    content: '▼';
+    font-size: 10px;
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+
+  /* ── Logs Calculator: Input Grid ── */
+  .input-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .input-group { display: flex; flex-direction: column; }
+
+  .unit-row {
+    margin-bottom: 20px;
+  }
+
+  .unit-row .select-wrap {
+    max-width: 200px;
+  }
+
+  /* ── Button ── */
+  button {
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 11px 24px;
+    border: var(--border);
+    border-radius: 0;
+    cursor: pointer;
+    background: var(--black);
+    color: var(--white);
+    transition: opacity 0.15s;
+  }
+
+  button:hover { opacity: 0.8; }
+  button:active { opacity: 0.6; }
+
+  .btn-compute { width: 100%; margin-bottom: 24px; }
+
+  /* ── Results Cards ── */
+  .results { display: none; }
+  .results.visible { display: block; }
+
+  .results-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .result-card {
+    border: var(--border);
+    padding: 16px 12px;
+    text-align: center;
+  }
+
+  .result-card .result-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+
+  .result-card .result-value {
+    font-size: 20px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    word-break: break-word;
+  }
+
+  .result-card .result-sub {
+    font-size: 11px;
+    color: #666;
+    margin-top: 4px;
+  }
+
+  /* Dynamic color states */
+  .result-card.is-lowest .result-value { color: var(--green); }
+  .result-card.is-lowest { border-color: var(--green); }
+  .result-card.is-highest .result-value { color: var(--red); }
+  .result-card.is-highest { border-color: var(--red); }
+
+  /* ── Basic Calculator ── */
+  .calc-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    gap: 10px;
+    align-items: end;
+  }
+
+  .calc-row .op-wrap {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .calc-row .op-wrap select {
+    width: 64px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 18px;
+    padding: 10px 4px;
+  }
+
+  .calc-result-box {
+    margin-top: 16px;
+    border: var(--border);
+    padding: 14px 16px;
+    font-size: 18px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    display: none;
+    text-align: right;
+  }
+
+  .calc-result-box.visible { display: block; }
+
+  .calc-result-box span.eq {
+    font-weight: 400;
+    color: #666;
+    margin-right: 8px;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 520px) {
+    .results-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .calc-row {
+      grid-template-columns: 1fr 56px 1fr;
+      grid-template-rows: auto auto;
+    }
+
+    .calc-row .op-wrap { grid-column: 2; }
+
+    .calc-row .input-group:nth-child(3) { grid-column: 1 / -1; }
+
+    .calc-row button { grid-column: 1 / -1; }
+
+    .input-row {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: Datadog Logs Calculator         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <h1>Datadog Logs Calculator</h1>
+  <p class="subtitle">Normalize log volumes to a monthly estimate for cost forecasting.</p>
+
+  <!-- Unit selector -->
+  <div class="unit-row">
+    <label for="unit">Input Unit</label>
+    <div class="select-wrap">
+      <select id="unit">
+        <option value="1000000">Millions</option>
+        <option value="1000">Thousands</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Row 1: Daily -->
+  <div class="input-row">
+    <div class="input-group">
+      <label for="daily">Avg Logs / Day</label>
+      <input type="number" id="daily" placeholder="e.g. 5" min="0" step="any">
+    </div>
+    <div class="input-group">
+      <label for="weekly">Avg Logs / Week</label>
+      <input type="number" id="weekly" placeholder="e.g. 30" min="0" step="any">
+    </div>
+  </div>
+
+  <!-- Row 2: Past Two Days -->
+  <div class="input-row">
+    <div class="input-group">
+      <label for="twoday">Total Logs Past 2 Days</label>
+      <input type="number" id="twoday" placeholder="e.g. 12" min="0" step="any">
+    </div>
+  </div>
+
+  <button class="btn-compute" onclick="computeLogs()">Compute Monthly Estimates</button>
+
+  <!-- Results -->
+  <div class="results" id="logsResults">
+    <h2>Monthly Estimates</h2>
+    <div class="results-grid">
+      <div class="result-card" id="cardDaily">
+        <div class="result-label">From Daily</div>
+        <div class="result-value" id="valDaily">—</div>
+        <div class="result-sub">logs / month</div>
+      </div>
+      <div class="result-card" id="cardWeekly">
+        <div class="result-label">From Weekly</div>
+        <div class="result-value" id="valWeekly">—</div>
+        <div class="result-sub">logs / month</div>
+      </div>
+      <div class="result-card" id="cardTwoDay">
+        <div class="result-label">From 2-Day</div>
+        <div class="result-value" id="valTwoDay">—</div>
+        <div class="result-sub">logs / month</div>
+      </div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: Basic Inline Calculator         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <h1>Scratchpad</h1>
+  <p class="subtitle">Quick math. No frills.</p>
+
+  <div class="calc-row">
+    <div class="input-group">
+      <label for="calcA">A</label>
+      <input type="number" id="calcA" placeholder="0" step="any">
+    </div>
+
+    <div class="op-wrap">
+      <label for="calcOp">Op</label>
+      <div class="select-wrap">
+        <select id="calcOp">
+          <option value="+">+</option>
+          <option value="-">−</option>
+          <option value="*">×</option>
+          <option value="/">÷</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label for="calcB">B</label>
+      <input type="number" id="calcB" placeholder="0" step="any">
+    </div>
+  </div>
+
+  <button style="width:100%;margin-top:16px;" onclick="computeCalc()">=&nbsp;&nbsp;Calculate</button>
+
+  <div class="calc-result-box" id="calcResult">
+    <span class="eq">=</span>
+    <span id="calcVal"></span>
+  </div>
+
+</div><!-- /.container -->
+
+<script>
+  /* ─────────────────────────────────────────────
+     CONSTANTS
+     ───────────────────────────────────────────── */
+  const DAYS_PER_MONTH  = 365 / 12;   // 30.41667
+  const WEEKS_PER_MONTH = 52 / 12;    // 4.33333
+
+  /* ─────────────────────────────────────────────
+     LOGS CALCULATOR
+     ───────────────────────────────────────────── */
+  function computeLogs() {
+    const unit = Number(document.getElementById('unit').value);
+
+    const rawDaily  = parseFloat(document.getElementById('daily').value);
+    const rawWeekly = parseFloat(document.getElementById('weekly').value);
+    const rawTwoDay = parseFloat(document.getElementById('twoday').value);
+
+    // Compute monthly totals (raw * unit * rate)
+    const entries = []; // { key, el, valEl, monthly }
+
+    if (!isNaN(rawDaily) && rawDaily > 0) {
+      const monthly = rawDaily * unit * DAYS_PER_MONTH;
+      entries.push({ key: 'daily', cardId: 'cardDaily', valId: 'valDaily', monthly });
+    }
+    if (!isNaN(rawWeekly) && rawWeekly > 0) {
+      const monthly = rawWeekly * unit * WEEKS_PER_MONTH;
+      entries.push({ key: 'weekly', cardId: 'cardWeekly', valId: 'valWeekly', monthly });
+    }
+    if (!isNaN(rawTwoDay) && rawTwoDay > 0) {
+      // Daily rate = total / 2, then multiply by days per month
+      const dailyRate = (rawTwoDay * unit) / 2;
+      const monthly = dailyRate * DAYS_PER_MONTH;
+      entries.push({ key: 'twoday', cardId: 'cardTwoDay', valId: 'valTwoDay', monthly });
+    }
+
+    if (entries.length === 0) return;
+
+    // Find min / max among computed values
+    const values = entries.map(e => e.monthly);
+    const minVal = Math.min(...values);
+    const maxVal = Math.max(...values);
+    const allEqual = minVal === maxVal;
+
+    // Reset all cards
+    ['cardDaily', 'cardWeekly', 'cardTwoDay'].forEach(id => {
+      const card = document.getElementById(id);
+      card.classList.remove('is-lowest', 'is-highest');
+    });
+    ['valDaily', 'valWeekly', 'valTwoDay'].forEach(id => {
+      document.getElementById(id).textContent = '—';
+    });
+
+    // Populate and color
+    entries.forEach(e => {
+      const card = document.getElementById(e.cardId);
+      const valEl = document.getElementById(e.valId);
+
+      valEl.textContent = formatNumber(Math.round(e.monthly));
+
+      if (!allEqual && entries.length > 1) {
+        if (e.monthly === minVal) card.classList.add('is-lowest');
+        if (e.monthly === maxVal) card.classList.add('is-highest');
+      }
+    });
+
+    // Show results section
+    document.getElementById('logsResults').classList.add('visible');
+  }
+
+  /** Format number with locale commas */
+  function formatNumber(n) {
+    return n.toLocaleString('en-US');
+  }
+
+  /* ─────────────────────────────────────────────
+     BASIC CALCULATOR
+     ───────────────────────────────────────────── */
+  function computeCalc() {
+    const a  = parseFloat(document.getElementById('calcA').value);
+    const b  = parseFloat(document.getElementById('calcB').value);
+    const op = document.getElementById('calcOp').value;
+
+    if (isNaN(a) || isNaN(b)) return;
+
+    let result;
+    switch (op) {
+      case '+': result = a + b; break;
+      case '-': result = a - b; break;
+      case '*': result = a * b; break;
+      case '/':
+        if (b === 0) {
+          document.getElementById('calcVal').textContent = 'Division by zero';
+          document.getElementById('calcResult').classList.add('visible');
+          return;
+        }
+        result = a / b;
+        break;
+    }
+
+    // Show up to 6 decimal places, strip trailing zeros
+    document.getElementById('calcVal').textContent = parseFloat(result.toFixed(6)).toLocaleString('en-US', { maximumFractionDigits: 6 });
+    document.getElementById('calcResult').classList.add('visible');
+  }
+
+  /* Allow Enter key to trigger computation in both sections */
+  document.querySelectorAll('#daily, #weekly, #twoday').forEach(el => {
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') computeLogs(); });
+  });
+  document.querySelectorAll('#calcA, #calcB').forEach(el => {
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') computeCalc(); });
+  });
+</script>
+
+</body>
+</html>
