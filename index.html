@@ -1,477 +1,377 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Datadog Logs Calculator</title>
-<style>
-  /* ── Color Scheme & Design Tokens ── */
-  :root {
-    --black: #000000;
-    --white: #ffffff;
-    --green: #10B981;
-    --red: #EF4444;
-    --border: 1.5px solid var(--black);
-    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-  }
-
-  /* ── Reset & Base ── */
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    font-family: var(--font);
-    background: var(--white);
-    color: var(--black);
-    line-height: 1.5;
-    padding: 24px 16px 64px;
-  }
-
-  .container {
-    max-width: 640px;
-    margin: 0 auto;
-  }
-
-  /* ── Typography ── */
-  h1 {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.5px;
-    margin-bottom: 4px;
-  }
-
-  .subtitle {
-    font-size: 13px;
-    color: #666;
-    margin-bottom: 24px;
-  }
-
-  h2 {
-    font-size: 16px;
-    font-weight: 700;
-    letter-spacing: -0.3px;
-    margin-bottom: 16px;
-  }
-
-  /* ── Divider ── */
-  hr {
-    border: none;
-    border-top: var(--border);
-    margin: 40px 0;
-  }
-
-  /* ── Form Elements ── */
-  label {
-    display: block;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 6px;
-  }
-
-  input[type="number"],
-  select {
-    width: 100%;
-    padding: 10px 12px;
-    font-family: var(--font);
-    font-size: 15px;
-    border: var(--border);
-    border-radius: 0;
-    background: var(--white);
-    color: var(--black);
-    -webkit-appearance: none;
-    appearance: none;
-    outline: none;
-  }
-
-  input[type="number"]:focus,
-  select:focus {
-    box-shadow: 0 0 0 1px var(--black);
-  }
-
-  /* Remove number input spinners */
-  input[type="number"]::-webkit-inner-spin-button,
-  input[type="number"]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-  input[type="number"] { -moz-appearance: textfield; }
-
-  /* Select arrow */
-  .select-wrap {
-    position: relative;
-  }
-  .select-wrap::after {
-    content: '▼';
-    font-size: 10px;
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    pointer-events: none;
-  }
-
-  /* ── Logs Calculator: Input Grid ── */
-  .input-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 12px;
-  }
-
-  .input-group { display: flex; flex-direction: column; }
-
-  .unit-row {
-    margin-bottom: 20px;
-  }
-
-  .unit-row .select-wrap {
-    max-width: 200px;
-  }
-
-  /* ── Button ── */
-  button {
-    font-family: var(--font);
-    font-size: 14px;
-    font-weight: 600;
-    padding: 11px 24px;
-    border: var(--border);
-    border-radius: 0;
-    cursor: pointer;
-    background: var(--black);
-    color: var(--white);
-    transition: opacity 0.15s;
-  }
-
-  button:hover { opacity: 0.8; }
-  button:active { opacity: 0.6; }
-
-  .btn-compute { width: 100%; margin-bottom: 24px; }
-
-  /* ── Results Cards ── */
-  .results { display: none; }
-  .results.visible { display: block; }
-
-  .results-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-  }
-
-  .result-card {
-    border: var(--border);
-    padding: 16px 12px;
-    text-align: center;
-  }
-
-  .result-card .result-label {
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 8px;
-  }
-
-  .result-card .result-value {
-    font-size: 20px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    word-break: break-word;
-  }
-
-  .result-card .result-sub {
-    font-size: 11px;
-    color: #666;
-    margin-top: 4px;
-  }
-
-  /* Dynamic color states */
-  .result-card.is-lowest .result-value { color: var(--green); }
-  .result-card.is-lowest { border-color: var(--green); }
-  .result-card.is-highest .result-value { color: var(--red); }
-  .result-card.is-highest { border-color: var(--red); }
-
-  /* ── Basic Calculator ── */
-  .calc-row {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr auto 1fr;
-    gap: 10px;
-    align-items: end;
-  }
-
-  .calc-row .op-wrap {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .calc-row .op-wrap select {
-    width: 64px;
-    text-align: center;
-    font-weight: 700;
-    font-size: 18px;
-    padding: 10px 4px;
-  }
-
-  .calc-result-box {
-    margin-top: 16px;
-    border: var(--border);
-    padding: 14px 16px;
-    font-size: 18px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    display: none;
-    text-align: right;
-  }
-
-  .calc-result-box.visible { display: block; }
-
-  .calc-result-box span.eq {
-    font-weight: 400;
-    color: #666;
-    margin-right: 8px;
-  }
-
-  /* ── Responsive ── */
-  @media (max-width: 520px) {
-    .results-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .calc-row {
-      grid-template-columns: 1fr 56px 1fr;
-      grid-template-rows: auto auto;
-    }
-
-    .calc-row .op-wrap { grid-column: 2; }
-
-    .calc-row .input-group:nth-child(3) { grid-column: 1 / -1; }
-
-    .calc-row button { grid-column: 1 / -1; }
-
-    .input-row {
-      grid-template-columns: 1fr;
-    }
-  }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Datadog Logs Calculator — Estimate Monthly Log Costs</title>
+  <meta name="description" content="Normalize log volumes to monthly estimates and forecast Datadog log ingestion costs.">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/animations.css">
 </head>
 <body>
 
-<div class="container">
+  <!-- ════════════════════════════════════════════
+       HEADER
+       ════════════════════════════════════════════ -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="#" class="logo">
+        <div class="logo-icon">DD</div>
+        <span>Logs Calc</span>
+      </a>
 
-  <!-- ═══════════════════════════════════════════ -->
-  <!-- SECTION 1: Datadog Logs Calculator         -->
-  <!-- ═══════════════════════════════════════════ -->
-  <h1>Datadog Logs Calculator</h1>
-  <p class="subtitle">Normalize log volumes to a monthly estimate for cost forecasting.</p>
+      <button class="hamburger" aria-label="Toggle navigation" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
 
-  <!-- Unit selector -->
-  <div class="unit-row">
-    <label for="unit">Input Unit</label>
-    <div class="select-wrap">
-      <select id="unit">
-        <option value="1000000">Millions</option>
-        <option value="1000">Thousands</option>
-      </select>
+      <nav>
+        <ul class="nav-links">
+          <li><a href="#logs">Calculator</a></li>
+          <li><a href="#scratch">Scratchpad</a></li>
+          <li><a href="#tips">Tips</a></li>
+          <li><a href="#faq">FAQ</a></li>
+        </ul>
+      </nav>
     </div>
-  </div>
+  </header>
 
-  <!-- Row 1: Daily -->
-  <div class="input-row">
-    <div class="input-group">
-      <label for="daily">Avg Logs / Day</label>
-      <input type="number" id="daily" placeholder="e.g. 5" min="0" step="any">
+  <!-- ════════════════════════════════════════════
+       HERO
+       ════════════════════════════════════════════ -->
+  <section class="hero">
+    <div class="hero-decor hero-decor-1"></div>
+    <div class="hero-decor hero-decor-2"></div>
+    <div class="hero-decor hero-decor-3"></div>
+    <div class="hero-decor hero-decor-4"></div>
+    <div class="hero-decor hero-decor-5"></div>
+
+    <div class="container">
+      <h1>Estimate Your Datadog Log Costs</h1>
+      <p>Normalize log volumes from any time period to a monthly estimate, and forecast ingestion costs before they surprise you.</p>
+      <a href="#logs" class="hero-cta">Start Calculating</a>
     </div>
-    <div class="input-group">
-      <label for="weekly">Avg Logs / Week</label>
-      <input type="number" id="weekly" placeholder="e.g. 30" min="0" step="any">
-    </div>
-  </div>
+  </section>
 
-  <!-- Row 2: Past Two Days -->
-  <div class="input-row">
-    <div class="input-group">
-      <label for="twoday">Total Logs Past 2 Days</label>
-      <input type="number" id="twoday" placeholder="e.g. 12" min="0" step="any">
-    </div>
-  </div>
+  <!-- ════════════════════════════════════════════
+       LOGS CALCULATOR
+       ════════════════════════════════════════════ -->
+  <section id="logs" class="section">
+    <div class="container">
+      <div class="section-card" data-reveal>
+        <div class="section-header" style="text-align:left">
+          <h2>Logs Volume Calculator</h2>
+          <p>Enter your log volumes in any time period below. Results update in real time.</p>
+        </div>
 
-  <button class="btn-compute" onclick="computeLogs()">Compute Monthly Estimates</button>
+        <!-- Settings row -->
+        <div class="settings-row">
+          <div class="input-group">
+            <label for="unit">Input Unit</label>
+            <div class="select-wrap">
+              <select id="unit">
+                <option value="1000000">Millions</option>
+                <option value="1000">Thousands</option>
+                <option value="1">Raw count</option>
+              </select>
+            </div>
+          </div>
+          <div class="input-group">
+            <label for="pricing">Pricing Tier</label>
+            <div class="select-wrap">
+              <select id="pricing">
+                <option value="ondemand">On-Demand ($0.10/GB)</option>
+                <option value="committed">Committed ($0.05/GB)</option>
+              </select>
+            </div>
+          </div>
+          <div class="input-group">
+            <label for="logSize">Avg Log Size (KB)</label>
+            <input type="number" id="logSize" value="1" min="0.1" step="0.1">
+          </div>
+          <div class="input-group">
+            <label for="retention">Retention</label>
+            <div class="select-wrap">
+              <select id="retention">
+                <option value="3">3 days</option>
+                <option value="7">7 days</option>
+                <option value="15" selected>15 days</option>
+                <option value="30">30 days</option>
+                <option value="60">60 days</option>
+                <option value="90">90 days</option>
+              </select>
+            </div>
+          </div>
+        </div>
 
-  <!-- Results -->
-  <div class="results" id="logsResults">
-    <h2>Monthly Estimates</h2>
-    <div class="results-grid">
-      <div class="result-card" id="cardDaily">
-        <div class="result-label">From Daily</div>
-        <div class="result-value" id="valDaily">—</div>
-        <div class="result-sub">logs / month</div>
+        <!-- Input fields -->
+        <div class="input-grid">
+          <div class="input-group">
+            <label for="hourly">Avg Logs / Hour</label>
+            <input type="number" id="hourly" placeholder="e.g. 500" min="0" step="any">
+          </div>
+          <div class="input-group">
+            <label for="daily">Avg Logs / Day</label>
+            <input type="number" id="daily" placeholder="e.g. 5" min="0" step="any">
+          </div>
+          <div class="input-group">
+            <label for="weekly">Avg Logs / Week</label>
+            <input type="number" id="weekly" placeholder="e.g. 30" min="0" step="any">
+          </div>
+          <div class="input-group">
+            <label for="twoday">Total Logs Past 2 Days</label>
+            <input type="number" id="twoday" placeholder="e.g. 12" min="0" step="any">
+          </div>
+          <div class="input-group">
+            <label for="customCount">Custom: Log Count</label>
+            <input type="number" id="customCount" placeholder="e.g. 100" min="0" step="any">
+          </div>
+          <div class="input-group">
+            <label for="customDays">Custom: Over N Days</label>
+            <input type="number" id="customDays" placeholder="e.g. 14" min="1" step="1">
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div class="results-area" id="logsResults">
+          <div class="divider"></div>
+          <h3 style="margin-bottom: var(--space-4);">Monthly Estimates</h3>
+
+          <div class="results-grid">
+            <div class="result-card" id="cardHourly" style="display:none">
+              <div class="result-label">From Hourly</div>
+              <div class="result-value" id="valHourly">—</div>
+              <div class="result-sub">logs / month</div>
+              <div class="result-cost" id="costHourly"></div>
+            </div>
+            <div class="result-card" id="cardDaily" style="display:none">
+              <div class="result-label">From Daily</div>
+              <div class="result-value" id="valDaily">—</div>
+              <div class="result-sub">logs / month</div>
+              <div class="result-cost" id="costDaily"></div>
+            </div>
+            <div class="result-card" id="cardWeekly" style="display:none">
+              <div class="result-label">From Weekly</div>
+              <div class="result-value" id="valWeekly">—</div>
+              <div class="result-sub">logs / month</div>
+              <div class="result-cost" id="costWeekly"></div>
+            </div>
+            <div class="result-card" id="cardTwoDay" style="display:none">
+              <div class="result-label">From 2-Day</div>
+              <div class="result-value" id="valTwoDay">—</div>
+              <div class="result-sub">logs / month</div>
+              <div class="result-cost" id="costTwoDay"></div>
+            </div>
+            <div class="result-card" id="cardCustom" style="display:none">
+              <div class="result-label">From Custom</div>
+              <div class="result-value" id="valCustom">—</div>
+              <div class="result-sub">logs / month</div>
+              <div class="result-cost" id="costCustom"></div>
+            </div>
+          </div>
+
+          <!-- Bar chart -->
+          <div class="bar-chart" id="barChart">
+            <h3>Comparison</h3>
+            <div id="barChartBars"></div>
+          </div>
+
+          <!-- Copy button -->
+          <div style="margin-top: var(--space-6); text-align: right;">
+            <button class="btn btn-secondary btn-sm" id="copyResults">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copy Results
+            </button>
+          </div>
+        </div>
       </div>
-      <div class="result-card" id="cardWeekly">
-        <div class="result-label">From Weekly</div>
-        <div class="result-value" id="valWeekly">—</div>
-        <div class="result-sub">logs / month</div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       SCRATCHPAD
+       ════════════════════════════════════════════ -->
+  <section id="scratch" class="section">
+    <div class="container">
+      <div class="section-card" data-reveal>
+        <div class="section-header" style="text-align:left">
+          <h2>Scratchpad</h2>
+          <p>Quick math with history and memory. Use keyboard shortcuts: +, -, *, /, %, ^, Enter, Escape.</p>
+        </div>
+
+        <div class="calc-row">
+          <div class="input-group">
+            <label for="calcA">A</label>
+            <input type="number" id="calcA" placeholder="0" step="any">
+          </div>
+
+          <div class="input-group">
+            <label for="calcOp">Op</label>
+            <div class="select-wrap op-wrap">
+              <select id="calcOp">
+                <option value="+">+</option>
+                <option value="-">−</option>
+                <option value="*">×</option>
+                <option value="/">÷</option>
+                <option value="%">%</option>
+                <option value="^">^</option>
+                <option value="sqrt">√</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="input-group" id="calcBGroup">
+            <label for="calcB">B</label>
+            <input type="number" id="calcB" placeholder="0" step="any">
+          </div>
+        </div>
+
+        <div class="calc-result-box" id="calcResult">
+          <span class="eq">=</span>
+          <span id="calcVal"></span>
+        </div>
+
+        <!-- Memory buttons -->
+        <div class="memory-row">
+          <button class="btn-memory" id="btnMPlus" title="Add result to memory">M+</button>
+          <button class="btn-memory" id="btnMMinus" title="Subtract result from memory">M−</button>
+          <button class="btn-memory" id="btnMR" title="Recall memory into A">MR</button>
+          <button class="btn-memory" id="btnMC" title="Clear memory">MC</button>
+        </div>
+
+        <!-- History -->
+        <div class="calc-history" id="calcHistory">
+          <div class="calc-history-header">
+            <span>History</span>
+            <button class="btn btn-sm btn-secondary" id="btnClearHistory">Clear</button>
+          </div>
+          <div class="calc-history-list"></div>
+        </div>
       </div>
-      <div class="result-card" id="cardTwoDay">
-        <div class="result-label">From 2-Day</div>
-        <div class="result-value" id="valTwoDay">—</div>
-        <div class="result-sub">logs / month</div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       TIPS
+       ════════════════════════════════════════════ -->
+  <section id="tips" class="section" style="background: var(--white);">
+    <div class="container">
+      <div class="section-header" data-reveal>
+        <h2>Log Management Tips</h2>
+        <p>Reduce costs and get more value from your Datadog logs.</p>
+      </div>
+
+      <div class="tips-grid">
+        <div class="tip-card" data-reveal data-reveal-delay="1">
+          <div class="tip-icon tip-icon-purple">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          </div>
+          <h3>Use Exclusion Filters</h3>
+          <p>Filter out noisy, low-value logs at ingestion time. Health checks, debug logs, and repetitive messages can be excluded to dramatically reduce volume.</p>
+        </div>
+
+        <div class="tip-card" data-reveal data-reveal-delay="2">
+          <div class="tip-icon tip-icon-teal">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          </div>
+          <h3>Set Up Log Pipelines</h3>
+          <p>Parse, enrich, and remap your logs with pipelines. Structured logs are easier to query, take less storage, and enable powerful faceted search.</p>
+        </div>
+
+        <div class="tip-card" data-reveal data-reveal-delay="3">
+          <div class="tip-icon tip-icon-green">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <h3>Archive to Cloud Storage</h3>
+          <p>Route logs to S3, GCS, or Azure Blob for long-term, cost-effective retention. Use Rehydration to bring them back into Datadog when needed.</p>
+        </div>
+
+        <div class="tip-card" data-reveal data-reveal-delay="4">
+          <div class="tip-icon tip-icon-warning">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <h3>Use Log-Based Metrics</h3>
+          <p>Generate metrics from log data instead of retaining every log. Track error rates, latencies, and counts without paying for full log storage.</p>
+        </div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <hr>
+  <!-- ════════════════════════════════════════════
+       FAQ
+       ════════════════════════════════════════════ -->
+  <section id="faq" class="section">
+    <div class="container">
+      <div class="section-header" data-reveal>
+        <h2>Frequently Asked Questions</h2>
+      </div>
 
-  <!-- ═══════════════════════════════════════════ -->
-  <!-- SECTION 2: Basic Inline Calculator         -->
-  <!-- ═══════════════════════════════════════════ -->
-  <h1>Scratchpad</h1>
-  <p class="subtitle">Quick math. No frills.</p>
+      <div class="faq-list" data-reveal>
+        <details class="faq-item">
+          <summary>How is the monthly estimate calculated?</summary>
+          <div class="faq-answer">
+            We use standard calendar constants: <strong>30.42 days/month</strong> (365/12) and <strong>4.33 weeks/month</strong> (52/12). Your input value is multiplied by the selected unit (millions, thousands, or raw), then scaled to a monthly rate based on the input period.
+          </div>
+        </details>
 
-  <div class="calc-row">
-    <div class="input-group">
-      <label for="calcA">A</label>
-      <input type="number" id="calcA" placeholder="0" step="any">
-    </div>
+        <details class="faq-item">
+          <summary>What does Datadog charge for log ingestion?</summary>
+          <div class="faq-answer">
+            Datadog charges for log ingestion on a per-GB basis. On-demand pricing is approximately <strong>$0.10/GB</strong>, while committed (annual) plans can bring this down to around <strong>$0.05/GB</strong>. Pricing may vary by region and contract — always check Datadog's official pricing page for current rates.
+          </div>
+        </details>
 
-    <div class="op-wrap">
-      <label for="calcOp">Op</label>
-      <div class="select-wrap">
-        <select id="calcOp">
-          <option value="+">+</option>
-          <option value="-">−</option>
-          <option value="*">×</option>
-          <option value="/">÷</option>
-        </select>
+        <details class="faq-item">
+          <summary>What is a retention period?</summary>
+          <div class="faq-answer">
+            Retention defines how long Datadog keeps your indexed logs available for search. Shorter retention (3-7 days) costs less but limits your historical search window. Longer retention (30-90 days) provides more history but at a higher cost per GB.
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>How accurate is the cost estimate?</summary>
+          <div class="faq-answer">
+            The cost estimate is approximate and based on the average log size you specify (default 1 KB). Real log sizes vary widely — JSON-heavy application logs may average 2-5 KB, while simple syslog messages might be under 0.5 KB. For accurate forecasting, check your actual average log size in Datadog's Log Explorer.
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Can I use this for metrics or APM estimation?</summary>
+          <div class="faq-answer">
+            This tool is designed specifically for <strong>log ingestion</strong> estimation. Datadog metrics and APM (traces) use different pricing models and volume calculations. We may add support for those in the future.
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Is this tool affiliated with Datadog?</summary>
+          <div class="faq-answer">
+            No. This is an independent, open-source tool created to help engineers estimate their log costs. It is not affiliated with, endorsed by, or connected to Datadog, Inc. in any way.
+          </div>
+        </details>
       </div>
     </div>
+  </section>
 
-    <div class="input-group">
-      <label for="calcB">B</label>
-      <input type="number" id="calcB" placeholder="0" step="any">
+  <!-- ════════════════════════════════════════════
+       FOOTER
+       ════════════════════════════════════════════ -->
+  <footer class="site-footer">
+    <div class="container">
+      <p>Datadog Logs Calculator — an open-source estimation tool.</p>
+      <p class="footer-note">Not affiliated with Datadog, Inc. Pricing is approximate — check <a href="https://www.datadoghq.com/pricing/" target="_blank" rel="noopener">Datadog's pricing page</a> for current rates.</p>
     </div>
-  </div>
+  </footer>
 
-  <button style="width:100%;margin-top:16px;" onclick="computeCalc()">=&nbsp;&nbsp;Calculate</button>
-
-  <div class="calc-result-box" id="calcResult">
-    <span class="eq">=</span>
-    <span id="calcVal"></span>
-  </div>
-
-</div><!-- /.container -->
-
-<script>
-  /* ─────────────────────────────────────────────
-     CONSTANTS
-     ───────────────────────────────────────────── */
-  const DAYS_PER_MONTH  = 365 / 12;   // 30.41667
-  const WEEKS_PER_MONTH = 52 / 12;    // 4.33333
-
-  /* ─────────────────────────────────────────────
-     LOGS CALCULATOR
-     ───────────────────────────────────────────── */
-  function computeLogs() {
-    const unit = Number(document.getElementById('unit').value);
-
-    const rawDaily  = parseFloat(document.getElementById('daily').value);
-    const rawWeekly = parseFloat(document.getElementById('weekly').value);
-    const rawTwoDay = parseFloat(document.getElementById('twoday').value);
-
-    // Compute monthly totals (raw * unit * rate)
-    const entries = []; // { key, el, valEl, monthly }
-
-    if (!isNaN(rawDaily) && rawDaily > 0) {
-      const monthly = rawDaily * unit * DAYS_PER_MONTH;
-      entries.push({ key: 'daily', cardId: 'cardDaily', valId: 'valDaily', monthly });
-    }
-    if (!isNaN(rawWeekly) && rawWeekly > 0) {
-      const monthly = rawWeekly * unit * WEEKS_PER_MONTH;
-      entries.push({ key: 'weekly', cardId: 'cardWeekly', valId: 'valWeekly', monthly });
-    }
-    if (!isNaN(rawTwoDay) && rawTwoDay > 0) {
-      // Daily rate = total / 2, then multiply by days per month
-      const dailyRate = (rawTwoDay * unit) / 2;
-      const monthly = dailyRate * DAYS_PER_MONTH;
-      entries.push({ key: 'twoday', cardId: 'cardTwoDay', valId: 'valTwoDay', monthly });
-    }
-
-    if (entries.length === 0) return;
-
-    // Find min / max among computed values
-    const values = entries.map(e => e.monthly);
-    const minVal = Math.min(...values);
-    const maxVal = Math.max(...values);
-    const allEqual = minVal === maxVal;
-
-    // Reset all cards
-    ['cardDaily', 'cardWeekly', 'cardTwoDay'].forEach(id => {
-      const card = document.getElementById(id);
-      card.classList.remove('is-lowest', 'is-highest');
-    });
-    ['valDaily', 'valWeekly', 'valTwoDay'].forEach(id => {
-      document.getElementById(id).textContent = '—';
-    });
-
-    // Populate and color
-    entries.forEach(e => {
-      const card = document.getElementById(e.cardId);
-      const valEl = document.getElementById(e.valId);
-
-      valEl.textContent = formatNumber(Math.round(e.monthly));
-
-      if (!allEqual && entries.length > 1) {
-        if (e.monthly === minVal) card.classList.add('is-lowest');
-        if (e.monthly === maxVal) card.classList.add('is-highest');
-      }
-    });
-
-    // Show results section
-    document.getElementById('logsResults').classList.add('visible');
-  }
-
-  /** Format number with locale commas */
-  function formatNumber(n) {
-    return n.toLocaleString('en-US');
-  }
-
-  /* ─────────────────────────────────────────────
-     BASIC CALCULATOR
-     ───────────────────────────────────────────── */
-  function computeCalc() {
-    const a  = parseFloat(document.getElementById('calcA').value);
-    const b  = parseFloat(document.getElementById('calcB').value);
-    const op = document.getElementById('calcOp').value;
-
-    if (isNaN(a) || isNaN(b)) return;
-
-    let result;
-    switch (op) {
-      case '+': result = a + b; break;
-      case '-': result = a - b; break;
-      case '*': result = a * b; break;
-      case '/':
-        if (b === 0) {
-          document.getElementById('calcVal').textContent = 'Division by zero';
-          document.getElementById('calcResult').classList.add('visible');
-          return;
-        }
-        result = a / b;
-        break;
-    }
-
-    // Show up to 6 decimal places, strip trailing zeros
-    document.getElementById('calcVal').textContent = parseFloat(result.toFixed(6)).toLocaleString('en-US', { maximumFractionDigits: 6 });
-    document.getElementById('calcResult').classList.add('visible');
-  }
-
-  /* Allow Enter key to trigger computation in both sections */
-  document.querySelectorAll('#daily, #weekly, #twoday').forEach(el => {
-    el.addEventListener('keydown', e => { if (e.key === 'Enter') computeLogs(); });
-  });
-  document.querySelectorAll('#calcA, #calcB').forEach(el => {
-    el.addEventListener('keydown', e => { if (e.key === 'Enter') computeCalc(); });
-  });
-</script>
-
+  <!-- Scripts -->
+  <script src="js/animations.js"></script>
+  <script src="js/logs-calculator.js"></script>
+  <script src="js/scratchpad.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>

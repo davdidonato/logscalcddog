@@ -1,0 +1,119 @@
+/* ══════════════════════════════════════════════
+   KEYFRAMES
+   ══════════════════════════════════════════════ */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ══════════════════════════════════════════════
+   SCROLL REVEAL
+   ══════════════════════════════════════════════ */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+[data-reveal-delay="1"] { transition-delay: 100ms; }
+[data-reveal-delay="2"] { transition-delay: 200ms; }
+[data-reveal-delay="3"] { transition-delay: 300ms; }
+[data-reveal-delay="4"] { transition-delay: 400ms; }
+
+/* ══════════════════════════════════════════════
+   HERO FLOAT ANIMATION
+   ══════════════════════════════════════════════ */
+.hero-decor-1 { animation: float 6s ease-in-out infinite; }
+.hero-decor-2 { animation: float 8s ease-in-out infinite 1s; }
+.hero-decor-3 { animation: float 5s ease-in-out infinite 0.5s; }
+.hero-decor-4 { animation: float 7s ease-in-out infinite 2s; }
+.hero-decor-5 { animation: float 4s ease-in-out infinite 1.5s; }
+
+/* ══════════════════════════════════════════════
+   CARD ENTRANCE
+   ══════════════════════════════════════════════ */
+.card-enter {
+  animation: scaleIn 0.4s ease both;
+}
+
+.card-enter:nth-child(1) { animation-delay: 0ms; }
+.card-enter:nth-child(2) { animation-delay: 80ms; }
+.card-enter:nth-child(3) { animation-delay: 160ms; }
+.card-enter:nth-child(4) { animation-delay: 240ms; }
+.card-enter:nth-child(5) { animation-delay: 320ms; }
+
+/* ══════════════════════════════════════════════
+   BUTTON EFFECTS
+   ══════════════════════════════════════════════ */
+.btn {
+  transition: all var(--transition-fast);
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+/* ══════════════════════════════════════════════
+   REDUCED MOTION
+   ══════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
